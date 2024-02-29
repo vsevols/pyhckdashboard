@@ -115,8 +115,7 @@ def get_balance(args):
     quote_amount = balance['total'][quote_currency]
     base_amount = balance['total'][base_currency]
     rate = 1  # !!!!!!!!!!!!!!!!! Предполагаем, что курс базовой валюты равен 1
-    total_value = quote_amount + base_amount * rate
-    return {'account_name': account_name, 'party': getParty(exchange), 'quote_amount': quote_amount, 'base_amount': base_amount, 'total_value': total_value}
+    return {'account_name': account_name, 'party': getParty(exchange), 'quote_amount': quote_amount, 'base_amount': base_amount, 'rate': rate}
 
 def print_balances(balances):
     # Определение ширины каждого столбца
@@ -132,37 +131,48 @@ def print_balances(balances):
     # Вывод заголовка
     print(f"{'Account Name':<{column_widths['account_name']}}{'pty':<{column_widths['party']}}{'Quote':<{column_widths['quote_amount']}}{'Base':<{column_widths['base_amount']}}{'BaseIQ':<{column_widths['baseAmount*rate']}}{'Total IQ':<{column_widths['quoteAmount+baseAmount*rate']}}")
 
+    total_iq = 0
+
     # Вывод балансов
     for balance in balances:
-        print(f"{balance['account_name']:<{column_widths['account_name']}}{balance['party']:<{column_widths['party']}}{balance['quote_amount']:<{column_widths['quote_amount']}}{balance['base_amount']:<{column_widths['base_amount']}}{balance['base_amount']:<{column_widths['baseAmount*rate']}}{balance['quote_amount']+balance['base_amount']:<{column_widths['quoteAmount+baseAmount*rate']}}")
+        print(f"{balance['account_name']:<{column_widths['account_name']}}{balance['party']:<{column_widths['party']}}{balance['quote_amount']:<{column_widths['quote_amount']}}{balance['base_amount']:<{column_widths['base_amount']}}{balance['base_amount']*balance['rate']:<{column_widths['baseAmount*rate']}}{balance['quote_amount']+balance['base_amount']*balance['rate']:<{column_widths['quoteAmount+baseAmount*rate']}}")
+        total_iq += balance['quote_amount']+balance['base_amount']*balance['rate']
+
+
+    print(f"\nTotal IQ: {total_iq}")
 
 
 
 if __name__ == "__main__":
     msymbol = 'BTC/USDC'
     ssymbol = 'BNB/USDC'
+    while True:
 
-    all_balances = []
-    with ThreadPoolExecutor() as executor:
-        # Используем executor.map для распараллеливания обращений к биржам
-        master_balances = executor.map(get_balance, zip(masters.values(), [msymbol]*len(masters)))
-        slave_balances = executor.map(get_balance, zip(slaves.values(), [ssymbol]*len(slaves)))
+        all_balances = []
+        with ThreadPoolExecutor() as executor:
+            # Используем executor.map для распараллеливания обращений к биржам
+            master_balances = executor.map(get_balance, zip(masters.values(), [msymbol]*len(masters)))
+            slave_balances = executor.map(get_balance, zip(slaves.values(), [ssymbol]*len(slaves)))
 
-        all_balances.extend([balance for balance in master_balances if balance])
-        all_balances.extend([balance for balance in slave_balances if balance])
+            all_balances.extend([balance for balance in master_balances if balance])
+            all_balances.extend([balance for balance in slave_balances if balance])
 
-    # Распечатаем все балансы
-    print(f"{msymbol} vs {ssymbol}")
-    print_balances(all_balances)
-    #print("masterOrSlave  account_name  quoteAmount  baseAmount  baseAmount*rate  quoteAmount+baseAmount*rate")
-    #for balance in all_balances:
-    #    print(f"{balance['account_name']} {balance['party']} {balance['quote_amount']} {balance['base_amount']} {balance['base_amount']} {balance['total_value']}")
+        common_rate = list(slaves.values())[0].fetch_ticker(ssymbol)['bid']
+        for balance in all_balances:
+            balance['rate'] = common_rate
 
+        # Распечатаем все балансы
+        print(f"{msymbol} vs {ssymbol} rate: {common_rate}")
+        print_balances(all_balances)
 
+        choice = input("\nPress B to refresh balance, O to fetch orders, or any other key to exit...").lower()
 
+        if choice == "o":
+            break  # Прерываем цикл, если выбран "O"
+        elif choice != "b":
+            exit()  # Завершаем программу при выборе любой другой клавиши
+        # Если выбрано "B", то программа повторит цикл
 
-    if input("Press B to refresh balance, O to fetch orders...").lower()!="o":
-        exit()
 
 #===================================================================================
     all_orders = []
