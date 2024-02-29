@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-bncusProxy= 'socks5://15.164.123.59:1080/'  # Замените на ваши параметры SOCKS5 прокси
+bncusProxy= 'socks5://15.164.123.59:1080/'  # AWS Seoul
 
 # Инициализация словаря объектов ccxt.exchange для masters
 masters = {
@@ -11,7 +11,7 @@ masters = {
         'apiKey': os.environ.get('LAGUS_BNCUS_API_KEY'),
         'secret': os.environ.get('LAGUS_BNCUS_API_SECRET'),
         'enableRateLimit': True,
-        'socksProxy': bncusProxy,
+        'socksProxy': bncusProxy
     }),
     'AGRAFENIN': ccxt.binanceus({
         'apiKey': os.environ.get('AGRAFENIN_BNCUS_API_KEY'),
@@ -40,8 +40,14 @@ slaves = {
     'SMAEVSKIJ2': ccxt.binance({
         'apiKey': os.environ.get('SMAEVSKIJ2_BNCCOM_API_KEY'),
         'secret': os.environ.get('SMAEVSKIJ2_BNCCOM_API_SECRET'),
+        'socksProxy': bncusProxy,
     }),
 }
+
+#for acc_name, exchange in slaves.items():
+#    print(f"checking access: {acc_name}")
+#    orders = exchange.fetch_open_orders(symbol="BTC/USDT")
+
 
 def fetch_orders(args):
     exchange, symbol = args
@@ -49,11 +55,36 @@ def fetch_orders(args):
     orders = exchange.fetch_orders(symbol, limit=10)
     return orders
 
+def get_account_name(exchange):
+    for key, val in masters.items():
+        if val == exchange:
+            return key
+    for key, val in slaves.items():
+        if val == exchange:
+            return key
+    return None
+
+def getParty(exchange):
+    for key, val in masters.items():
+        if val == exchange:
+            return 'M';
+    for key, val in slaves.items():
+        if val == exchange:
+            return 'S';
+    return None
+
+
 def fetch_filled_orders(args):
     exchange, symbol = args
     # Получаем все заполненные ордера по торговой паре
-    filled_orders = exchange.fetch_closed_orders(symbol)
-    return [{'account_name': exchange.id, 'type': 'MASTER' if exchange in masters.values() else 'SLAVE', **order} for order in filled_orders]
+    filled_orders = exchange.fetch_my_trades(symbol) #.fetch_closed_orders(symbol)
+    party=None
+    if exchange in masters.values():
+        party="M"
+    if exchange in slaves.values():
+        party="S"
+
+    return [{'account_name': get_account_name(exchange), 'party': party, **order} for order in filled_orders]
 
 
 def print_orders(title, orders):
@@ -69,13 +100,69 @@ def print_orders_combo(title, orders):
     for order in orders:
         date = datetime.fromtimestamp(order['timestamp'] / 1000.0).strftime('%Y-%m-%d %H:%M:%S')
         account_name = order['account_name']
-        order_type = order['type']
+        party = order['party']
         order_details = f"{order['symbol']} {order['side']} {order['price']} {order['amount']}"
-        print(f"{date:<20}{account_name:<20}{order_type:<10}{order_details:<50}")
+        print(f"{date:<20}{account_name:<20}{party:<10}{order_details:<50}")
+
+def get_balance(args):
+    exchange, symbol=args
+    account_name = get_account_name(exchange)
+
+    # Получаем баланс для указанного символа
+    balance = exchange.fetch_balance()
+    base_currency, quote_currency = msymbol.split('/')
+
+    quote_amount = balance['total'][quote_currency]
+    base_amount = balance['total'][base_currency]
+    rate = 1  # !!!!!!!!!!!!!!!!! Предполагаем, что курс базовой валюты равен 1
+    total_value = quote_amount + base_amount * rate
+    return {'account_name': account_name, 'party': getParty(exchange), 'quote_amount': quote_amount, 'base_amount': base_amount, 'total_value': total_value}
+
+def print_balances(balances):
+    # Определение ширины каждого столбца
+    column_widths = {
+        'account_name': 15,
+        'party': 5,
+        'quote_amount': 15,
+        'base_amount': 15,
+        'baseAmount*rate': 15,
+        'quoteAmount+baseAmount*rate': 25
+    }
+
+    # Вывод заголовка
+    print(f"{'Account Name':<{column_widths['account_name']}}{'pty':<{column_widths['party']}}{'Quote':<{column_widths['quote_amount']}}{'Base':<{column_widths['base_amount']}}{'BaseIQ':<{column_widths['baseAmount*rate']}}{'Total IQ':<{column_widths['quoteAmount+baseAmount*rate']}}")
+
+    # Вывод балансов
+    for balance in balances:
+        print(f"{balance['account_name']:<{column_widths['account_name']}}{balance['party']:<{column_widths['party']}}{balance['quote_amount']:<{column_widths['quote_amount']}}{balance['base_amount']:<{column_widths['base_amount']}}{balance['base_amount']:<{column_widths['baseAmount*rate']}}{balance['quote_amount']+balance['base_amount']:<{column_widths['quoteAmount+baseAmount*rate']}}")
+
+
 
 if __name__ == "__main__":
     msymbol = 'BTC/USDC'
     ssymbol = 'BNB/USDC'
+
+    all_balances = []
+    with ThreadPoolExecutor() as executor:
+        # Используем executor.map для распараллеливания обращений к биржам
+        master_balances = executor.map(get_balance, zip(masters.values(), [msymbol]*len(masters)))
+        slave_balances = executor.map(get_balance, zip(slaves.values(), [ssymbol]*len(slaves)))
+
+        all_balances.extend([balance for balance in master_balances if balance])
+        all_balances.extend([balance for balance in slave_balances if balance])
+
+    # Распечатаем все балансы
+    print(f"{msymbol} vs {ssymbol}")
+    print_balances(all_balances)
+    #print("masterOrSlave  account_name  quoteAmount  baseAmount  baseAmount*rate  quoteAmount+baseAmount*rate")
+    #for balance in all_balances:
+    #    print(f"{balance['account_name']} {balance['party']} {balance['quote_amount']} {balance['base_amount']} {balance['base_amount']} {balance['total_value']}")
+
+
+
+
+    if input("Press B to refresh balance, O to fetch orders...").lower()!="o":
+        exit()
 
 #===================================================================================
     all_orders = []
@@ -87,11 +174,12 @@ if __name__ == "__main__":
 	
     # Сортировка объединенного списка по дате
     all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
-	
-    print_orders("Master orders", all_orders_sorted)
+#TODO: обрезать список здесь	
+    print_orders("Master sent orders", all_orders_sorted)
 
 #===================================================================================
 
+    all_orders = []
     with ThreadPoolExecutor() as executor:
         # Используем executor.map для распараллеливания обращений к биржам
         master_orders_lists = executor.map(fetch_filled_orders, [(exchange, msymbol) for exchange in masters.values()])
@@ -107,4 +195,5 @@ if __name__ == "__main__":
     all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
 
     # Вывод информации
-    print_orders_combo("Filled Orders", all_orders_sorted)
+    print_orders_combo("ALL Filled Orders", all_orders_sorted)
+
