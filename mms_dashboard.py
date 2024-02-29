@@ -100,19 +100,19 @@ def fetch_filled_orders(args):
 def print_orders(title, orders):
     print(f"\n{title}:\n{'Date':<20}{'Account Name':<20}{'Order Details':<50}")
     for order in orders:
-        date = datetime.fromtimestamp(order['timestamp'] / 1000.0).strftime('%Y-%m-%d %H:%M:%S')
+        date = datetime.fromtimestamp(order['timestamp'] / 1000).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
         account_name = order['account_name']
-        order_details = f"{order['symbol']} {order['type']} {order['side']} {order['price']} {order['amount']}"
-        print(f"{date:<20}{account_name:<20}{order_details:<50}")
+        order_details = f"{order['symbol']} {order['side']} {order['price']} {order['amount']} {round(order['price']*order['amount'], 2)}"
+        print(f"{date:<20} {account_name:<15}{order_details:<50}")
 
 def print_orders_combo(title, orders):
     print(f"\n{title}:\n{'Date':<20}{'Account Name':<20}{'Order Type':<10}{'Order Details':<50}")
     for order in orders:
-        date = datetime.fromtimestamp(order['timestamp'] / 1000.0).strftime('%Y-%m-%d %H:%M:%S')
+        date = datetime.fromtimestamp(order['timestamp'] / 1000).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
         account_name = order['account_name']
         party = order['party']
-        order_details = f"{order['symbol']} {order['side']} {order['price']} {order['amount']}"
-        print(f"{date:<20}{account_name:<20}{party:<10}{order_details:<50}")
+        order_details = f"{order['symbol']} {order['side']} {order['price']} {order['amount']} {round(order['price']*order['amount'], 2)}"
+        print(f"{date:<20} {account_name:<15}{party:<2}{order_details:<50}")
 
 def get_balance(args):
     exchange, symbol=args
@@ -168,6 +168,9 @@ def print_balances(balances):
     # Вывод заголовка
     print(f"{'Account Name':<{column_widths['account_name']}}{'pty':<{column_widths['party']}}{'Quote':<{column_widths['quote_amount']}}{'Base':<{column_widths['base_amount']}}{'BaseIQ':<{column_widths['baseAmount*rate']}}{'Total IQ':<{column_widths['quoteAmount+baseAmount*rate']}}")
 
+    total_quote_amount = 0
+    total_base_amount = 0
+    total_base_amount_rate = 0
     total_iq = 0
 
     # Вывод балансов
@@ -180,15 +183,19 @@ def print_balances(balances):
         total_value = quote_amount + base_amount_rate
 
         print(f"{account_name:<{column_widths['account_name']}}{party:<{column_widths['party']}}{quote_amount:<{column_widths['quote_amount']}}{base_amount:<{column_widths['base_amount']}}{base_amount_rate:<{column_widths['baseAmount*rate']}} {total_value:<{column_widths['quoteAmount+baseAmount*rate']}}")        
+        total_quote_amount += quote_amount
+        total_base_amount += base_amount
+        total_base_amount_rate += base_amount_rate
         total_iq += total_value
-
-
-    print(f"\nTotal IQ: {total_iq}")
+        
+    dummy="*"
+    account_name="_TOTAL_"
+    print(f"{account_name:<{column_widths['account_name']}}{dummy:<{column_widths['party']}}{round(total_quote_amount, 2):<{column_widths['quote_amount']}}{total_base_amount:<{column_widths['base_amount']}} {round(total_base_amount_rate,2):<{column_widths['baseAmount*rate']}} {total_iq:<{column_widths['quoteAmount+baseAmount*rate']}}")        
 
 
 
 if __name__ == "__main__":
-    msymbol = 'BTC/USDT'
+    msymbol = 'BTC/USDC'
     ssymbol = 'BTC/USDC'
     while True:
 
@@ -206,16 +213,16 @@ if __name__ == "__main__":
             balance['rate'] = common_rate
 
         # Распечатаем все балансы
-        print(f"{msymbol} vs {ssymbol} rate: {common_rate}")
+        print(f"{msymbol} vs {ssymbol} rate: {common_rate} time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print_balances(all_balances)
 
-        choice = input("\nPress B to refresh balance, \"S\"ent or \"F\"illed to fetch orders, or any other key to exit...").lower()
+        choice = input("\nPress C to exit, \"S\"ent or \"F\"illed to fetch orders, or any other key to refresh balance...").lower()
 
         if choice in {"s","f"}:
             break  # Прерываем цикл
-        elif choice != "b":
+        elif choice == "c":
             exit()  # Завершаем программу при выборе любой другой клавиши
-        # Если выбрано "B", то программа повторит цикл
+        # Другие кнопки: программа повторит цикл
 
 
 #===================================================================================
