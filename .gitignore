@@ -1,2 +1,4 @@
 .secret.bat
 *.secret.bat
+.secret.sh
+*.secret.sh
