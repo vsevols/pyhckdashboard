@@ -44,6 +44,10 @@ slaves = {
     }),
 }
 
+slaves.pop('VSGMAIL', None)
+slaves.pop('SMAEVSKIJ2', None)
+
+
 #for acc_name, exchange in slaves.items():
 #    print(f"checking access: {acc_name}")
 #    orders = exchange.fetch_open_orders(symbol="BTC/USDT")
@@ -172,10 +176,10 @@ def print_balances(balances):
         party = balance['party']
         quote_amount = balance['quote_amount']
         base_amount = balance['base_amount']
-        base_amount_rate = base_amount * balance['rate']
+        base_amount_rate = round(base_amount * balance['rate'], 2)
         total_value = quote_amount + base_amount_rate
 
-        print(f"{account_name:<{column_widths['account_name']}}{party:<{column_widths['party']}}{quote_amount:<{column_widths['quote_amount']}}{base_amount:<{column_widths['base_amount']}}{base_amount_rate:<{column_widths['baseAmount*rate']}}{total_value:<{column_widths['quoteAmount+baseAmount*rate']}}")        
+        print(f"{account_name:<{column_widths['account_name']}}{party:<{column_widths['party']}}{quote_amount:<{column_widths['quote_amount']}}{base_amount:<{column_widths['base_amount']}}{base_amount_rate:<{column_widths['baseAmount*rate']}} {total_value:<{column_widths['quoteAmount+baseAmount*rate']}}")        
         total_iq += total_value
 
 
@@ -205,45 +209,47 @@ if __name__ == "__main__":
         print(f"{msymbol} vs {ssymbol} rate: {common_rate}")
         print_balances(all_balances)
 
-        choice = input("\nPress B to refresh balance, O to fetch orders, or any other key to exit...").lower()
+        choice = input("\nPress B to refresh balance, \"S\"ent or \"F\"illed to fetch orders, or any other key to exit...").lower()
 
-        if choice == "o":
-            break  # Прерываем цикл, если выбран "O"
+        if choice in {"s","f"}:
+            break  # Прерываем цикл
         elif choice != "b":
             exit()  # Завершаем программу при выборе любой другой клавиши
         # Если выбрано "B", то программа повторит цикл
 
 
 #===================================================================================
-    all_orders = []
-    with ThreadPoolExecutor() as executor:
-        # Используем executor.map для распараллеливания обращений к биржам
-        orders_lists = executor.map(fetch_orders, zip(masters.values(), [msymbol]*len(masters)))
-        for account_name, orders in zip(masters.keys(), orders_lists):
-            all_orders.extend([{'account_name': account_name, **order} for order in orders])
+    if choice=="s":
+        all_orders = []
+        with ThreadPoolExecutor() as executor:
+            # Используем executor.map для распараллеливания обращений к биржам
+            orders_lists = executor.map(fetch_orders, zip(masters.values(), [msymbol]*len(masters)))
+            for account_name, orders in zip(masters.keys(), orders_lists):
+                all_orders.extend([{'account_name': account_name, **order} for order in orders])
 	
-    # Сортировка объединенного списка по дате
-    all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
-#TODO: обрезать список здесь	
-    print_orders("Master sent orders", all_orders_sorted)
+        # Сортировка объединенного списка по дате
+        all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
+        
+        #TODO: обрезать список здесь	
+        print_orders("Master sent orders", all_orders_sorted)
 
 #===================================================================================
+    if choice=="f":
+        all_orders = []
+        with ThreadPoolExecutor() as executor:
+            # Используем executor.map для распараллеливания обращений к биржам
+            master_orders_lists = executor.map(fetch_filled_orders, [(exchange, msymbol) for exchange in masters.values()])
+            slave_orders_lists = executor.map(fetch_filled_orders, [(exchange, ssymbol) for exchange in slaves.values()])
 
-    all_orders = []
-    with ThreadPoolExecutor() as executor:
-        # Используем executor.map для распараллеливания обращений к биржам
-        master_orders_lists = executor.map(fetch_filled_orders, [(exchange, msymbol) for exchange in masters.values()])
-        slave_orders_lists = executor.map(fetch_filled_orders, [(exchange, ssymbol) for exchange in slaves.values()])
+            for account_name, master_orders in zip(masters.keys(), master_orders_lists):
+                all_orders.extend(master_orders)
 
-        for account_name, master_orders in zip(masters.keys(), master_orders_lists):
-            all_orders.extend(master_orders)
+            for account_name, slave_orders in zip(slaves.keys(), slave_orders_lists):
+                all_orders.extend(slave_orders)
 
-        for account_name, slave_orders in zip(slaves.keys(), slave_orders_lists):
-            all_orders.extend(slave_orders)
+        # Сортировка объединенного списка по дате
+        all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
 
-    # Сортировка объединенного списка по дате
-    all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
-
-    # Вывод информации
-    print_orders_combo("ALL Filled Orders", all_orders_sorted)
+        # Вывод информации
+        print_orders_combo("ALL Filled Orders", all_orders_sorted)
 
