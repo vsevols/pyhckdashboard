@@ -167,9 +167,16 @@ def print_balances(balances):
     total_iq = 0
 
     # Вывод балансов
-    for balance in balances:
-        print(f"{balance['account_name']:<{column_widths['account_name']}}{balance['party']:<{column_widths['party']}}{balance['quote_amount']:<{column_widths['quote_amount']}}{balance['base_amount']:<{column_widths['base_amount']}}{balance['base_amount']*balance['rate']:<{column_widths['baseAmount*rate']}}{balance['quote_amount']+balance['base_amount']*balance['rate']:<{column_widths['quoteAmount+baseAmount*rate']}}")
-        total_iq += balance['quote_amount']+balance['base_amount']*balance['rate']
+    for balance in all_balances:
+        account_name = balance['account_name']
+        party = balance['party']
+        quote_amount = balance['quote_amount']
+        base_amount = balance['base_amount']
+        base_amount_rate = base_amount * balance['rate']
+        total_value = quote_amount + base_amount_rate
+
+        print(f"{account_name:<{column_widths['account_name']}}{party:<{column_widths['party']}}{quote_amount:<{column_widths['quote_amount']}}{base_amount:<{column_widths['base_amount']}}{base_amount_rate:<{column_widths['baseAmount*rate']}}{total_value:<{column_widths['quoteAmount+baseAmount*rate']}}")        
+        total_iq += total_value
 
 
     print(f"\nTotal IQ: {total_iq}")
