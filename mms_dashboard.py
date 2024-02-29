@@ -52,7 +52,13 @@ slaves = {
 def fetch_orders(args):
     exchange, symbol = args
     # Получаем отправленные ордера по торговой паре
-    orders = exchange.fetch_orders(symbol, limit=10)
+    party=getParty(exchange)
+    orders = None
+    if party=="M":
+        orders = exchange.fetch_orders(symbol, limit=50)
+    else:
+        orders = exchange.fetch_orders(symbol, None, 50, {'marginMode': 'isolated'})
+
     return orders
 
 def get_account_name(exchange):
@@ -77,12 +83,12 @@ def getParty(exchange):
 def fetch_filled_orders(args):
     exchange, symbol = args
     # Получаем все заполненные ордера по торговой паре
-    filled_orders = exchange.fetch_my_trades(symbol) #.fetch_closed_orders(symbol)
-    party=None
-    if exchange in masters.values():
-        party="M"
-    if exchange in slaves.values():
-        party="S"
+    party=getParty(exchange)
+    filled_orders = None
+    if party=="M":
+        filled_orders = exchange.fetch_my_trades(symbol) #.fetch_closed_orders(symbol)
+    else:
+        filled_orders = exchange.fetch_my_trades(symbol, None, 50, {'marginMode': 'isolated'})
 
     return [{'account_name': get_account_name(exchange), 'party': party, **order} for order in filled_orders]
 
@@ -108,14 +114,41 @@ def get_balance(args):
     exchange, symbol=args
     account_name = get_account_name(exchange)
 
-    # Получаем баланс для указанного символа
-    balance = exchange.fetch_balance()
+    party=getParty(exchange)
     base_currency, quote_currency = msymbol.split('/')
+
+    balance = None
+    if party=="M":
+        balance = exchange.fetch_balance()
+    else:
+        margin_iso = exchange.sapi_get_margin_isolated_account()
+        # Найдем элемент с нужной валютной парой
+        target_element = next(
+            (asset for asset in margin_iso.get('assets', []) if
+             asset.get('quoteAsset', {}).get('asset') == 'USDC' and
+             asset.get('baseAsset', {}).get('asset') == 'BTC'),
+            None
+        )
+        if target_element is None:
+            return {
+                    'account_name': account_name,  # Замените на ваш аккаунт
+                    'party': 'S',  # Замените на ваш тип (M или S)
+                    'quote_amount': 0.,
+                    'base_amount': 0.
+                   }
+            
+
+        return {
+                'account_name': account_name,  # Замените на ваш аккаунт
+                'party': 'S',  # Замените на ваш тип (M или S)
+                'quote_amount': float(target_element['quoteAsset']['netAsset']),
+                'base_amount': float(target_element['baseAsset']['netAsset'])
+               }
+        
 
     quote_amount = balance['total'][quote_currency]
     base_amount = balance['total'][base_currency]
-    rate = 1  # !!!!!!!!!!!!!!!!! Предполагаем, что курс базовой валюты равен 1
-    return {'account_name': account_name, 'party': getParty(exchange), 'quote_amount': quote_amount, 'base_amount': base_amount, 'rate': rate}
+    return {'account_name': account_name, 'party': getParty(exchange), 'quote_amount': quote_amount, 'base_amount': base_amount}
 
 def print_balances(balances):
     # Определение ширины каждого столбца
@@ -144,8 +177,8 @@ def print_balances(balances):
 
 
 if __name__ == "__main__":
-    msymbol = 'BTC/USDC'
-    ssymbol = 'BNB/USDC'
+    msymbol = 'BTC/USDT'
+    ssymbol = 'BTC/USDC'
     while True:
 
         all_balances = []
