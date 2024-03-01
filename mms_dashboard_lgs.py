@@ -44,11 +44,11 @@ slaves = {
     }),
 }
 
-msymbol = 'BTC/USDT'
-ssymbol = 'BTC/FDUSD'
+msymbol = 'BTC/USDC'
+ssymbol = 'BTC/USDC'
 
-masters.pop('LAGUS', None)
-slaves.pop('LAGUSBRO', None)
+slaves.pop('VSGMAIL', None)
+slaves.pop('SMAEVSKIJ2', None)
 
 
 #for acc_name, exchange in slaves.items():
@@ -122,20 +122,18 @@ def get_balance(args):
     account_name = get_account_name(exchange)
 
     party=getParty(exchange)
-    base_currency = quote_currency = None
+    base_currency, quote_currency = msymbol.split('/')
 
     balance = None
     if party=="M":
         balance = exchange.fetch_balance()
-        base_currency, quote_currency = msymbol.split('/')
     else:
-        base_currency, quote_currency = ssymbol.split('/')
         margin_iso = exchange.sapi_get_margin_isolated_account()
         # Найдем элемент с нужной валютной парой
         target_element = next(
             (asset for asset in margin_iso.get('assets', []) if
-             asset.get('quoteAsset', {}).get('asset') == quote_currency and
-             asset.get('baseAsset', {}).get('asset') == base_currency),
+             asset.get('quoteAsset', {}).get('asset') == 'USDC' and
+             asset.get('baseAsset', {}).get('asset') == 'BTC'),
             None
         )
         if target_element is None:
