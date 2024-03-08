@@ -47,6 +47,8 @@ slaves = {
 msymbol = 'BTC/USDC'
 ssymbol = 'BTC/USDC'
 
+masters.pop('AGRAFENIN', None)
+masters.pop('STEPANOV', None)
 slaves.pop('VSGMAIL', None)
 slaves.pop('SMAEVSKIJ2', None)
 
@@ -196,6 +198,13 @@ def print_balances(balances):
     print(f"{account_name:<{column_widths['account_name']}}{dummy:<{column_widths['party']}}{round(total_quote_amount, 2):<{column_widths['quote_amount']}}{total_base_amount:<{column_widths['base_amount']}} {round(total_base_amount_rate,2):<{column_widths['baseAmount*rate']}} {total_iq:<{column_widths['quoteAmount+baseAmount*rate']}}")        
 
 
+def fetchOrderCntLastDay(exchange):
+    response = exchange.privateGetRateLimitOrder()
+    # print(response)
+    filtered_data = [item for item in response if item['rateLimitType'] == 'ORDERS' and item['interval'] == 'DAY']
+    count_value = int(filtered_data[0]['count'])
+    return count_value
+
 
 if __name__ == "__main__":
     while True:
@@ -216,6 +225,10 @@ if __name__ == "__main__":
         # Распечатаем все балансы
         print(f"{msymbol} vs {ssymbol} rate: {common_rate} time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print_balances(all_balances)
+
+
+        ordercnt=fetchOrderCntLastDay(list(masters.values())[0])
+        print(f"\nmasters[0] ordercnt sent last day: {ordercnt}")
 
         choice = input("\nPress C to exit, \"S\"ent or \"F\"illed to fetch orders, or any other key to refresh balance...").lower()
 
