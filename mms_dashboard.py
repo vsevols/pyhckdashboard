@@ -68,6 +68,18 @@ def fetch_orders(args):
 
     return orders
 
+def fetch_open_orders(args):
+    exchange, symbol = args
+    # Получаем активные ордера по торговой паре
+    party=getParty(exchange)
+    orders = None
+    if party=="M":
+        orders = exchange.fetch_open_orders(symbol, limit=50)
+    else:
+        orders = exchange.fetch_open_orders(symbol, None, 50, {'marginMode': 'isolated'})
+
+    return orders
+
 def get_account_name(exchange):
     for key, val in masters.items():
         if val == exchange:
@@ -105,7 +117,7 @@ def print_orders(title, orders):
     for order in orders:
         date = datetime.fromtimestamp(order['timestamp'] / 1000).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
         account_name = order['account_name']
-        order_details = f"{order['symbol']} {order['side']} {order['price']} {order['amount']} {round(order['price']*order['amount'], 2)}"
+        order_details = f"{order['symbol']} {order['side']} {order['price']} {order['amount']} {round(order['price']*order['amount'], 2)} {order['clientOrderId']}"
         print(f"{date:<20} {account_name:<15}{order_details:<50}")
 
 def print_orders_combo(title, orders):
@@ -198,6 +210,13 @@ def print_balances(balances):
     print(f"{account_name:<{column_widths['account_name']}}{dummy:<{column_widths['party']}}{round(total_quote_amount, 2):<{column_widths['quote_amount']}}{total_base_amount:<{column_widths['base_amount']}} {round(total_base_amount_rate,2):<{column_widths['baseAmount*rate']}} {total_iq:<{column_widths['quoteAmount+baseAmount*rate']}}")        
 
 
+def fetchOrderCntLastDay(exchange):
+    response = exchange.privateGetRateLimitOrder()
+    # print(response)
+    filtered_data = [item for item in response if item['rateLimitType'] == 'ORDERS' and item['interval'] == 'DAY']
+    count_value = int(filtered_data[0]['count'])
+    return count_value
+
 
 if __name__ == "__main__":
     while True:
@@ -219,9 +238,13 @@ if __name__ == "__main__":
         print(f"{msymbol} vs {ssymbol} rate: {common_rate} time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print_balances(all_balances)
 
-        choice = input("\nPress C to exit, \"S\"ent or \"F\"illed to fetch orders, or any other key to refresh balance...").lower()
+        for master_id, master_data in masters.items():
+            ordercnt = fetchOrderCntLastDay(master_data)
+            print(f"masters[{master_id}] ordercnt sent last day: {ordercnt}")
 
-        if choice in {"s","f"}:
+        choice = input("\nPress C to exit, \"S\"ent or \"F\"illed or \"A\"ctive to fetch orders, or any other key to refresh balance...").lower()
+
+        if choice in {"s","f","a"}:
             break  # Прерываем цикл
         elif choice == "c":
             exit()  # Завершаем программу при выборе любой другой клавиши
@@ -242,6 +265,21 @@ if __name__ == "__main__":
         
         #TODO: обрезать список здесь	
         print_orders("Master sent orders", all_orders_sorted)
+
+#===================================================================================
+    if choice=="a":
+        all_orders = []
+        with ThreadPoolExecutor() as executor:
+            # Используем executor.map для распараллеливания обращений к биржам
+            orders_lists = executor.map(fetch_open_orders, zip(masters.values(), [msymbol]*len(masters)))
+            for account_name, orders in zip(masters.keys(), orders_lists):
+                all_orders.extend([{'account_name': account_name, **order} for order in orders])
+	
+        # Сортировка объединенного списка по дате
+        all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
+        
+        #TODO: обрезать список здесь	
+        print_orders("Master active orders", all_orders_sorted)
 
 #===================================================================================
     if choice=="f":
