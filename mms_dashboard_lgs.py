@@ -270,7 +270,7 @@ if __name__ == "__main__":
     while True:
         try:
             show_balances()
-        except (ccxt.base.errors.RequestTimeout, ccxt.base.errors.InvalidNonce) as e:
+        except Exception as e:
             print(f"{e}, retrying...")
             continue
 
@@ -288,7 +288,7 @@ if __name__ == "__main__":
         while True:
             try:
                 show_sent_orders()
-            except (ccxt.base.errors.RequestTimeout, ccxt.base.errors.InvalidNonce) as e:
+            except Exception as e:
                 print(f"{e}, retrying...")
                 continue
 
@@ -297,6 +297,6 @@ if __name__ == "__main__":
         while True:
             try:
                 show_filled_orders()
-            except (ccxt.base.errors.RequestTimeout, ccxt.base.errors.InvalidNonce) as e:
+            except Exception as e:
                 print(f"{e}, retrying...")
                 continue

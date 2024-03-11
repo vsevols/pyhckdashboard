@@ -227,86 +227,124 @@ def fetchOrderCntLastDay(exchange):
     return count_value
 
 
+def show_balances():
+    global all_balances, executor
+    all_balances = []
+    with ThreadPoolExecutor() as executor:
+        # Используем executor.map для распараллеливания обращений к биржам
+        master_balances = executor.map(get_balance, zip(masters.values(), [msymbol] * len(masters)))
+        slave_balances = executor.map(get_balance, zip(slaves.values(), [ssymbol] * len(slaves)))
+
+        all_balances.extend([balance for balance in master_balances if balance])
+        all_balances.extend([balance for balance in slave_balances if balance])
+    common_rate = list(slaves.values())[0].fetch_ticker(ssymbol)['bid']
+    for balance in all_balances:
+        balance['rate'] = common_rate
+    # Распечатаем все балансы
+    print(f"{msymbol} vs {ssymbol} rate: {common_rate} time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print_balances(all_balances)
+    for master_id, master_data in masters.items():
+        ordercnt = fetchOrderCntLastDay(master_data)
+        print(f"masters[{master_id}] ordercnt sent last day: {ordercnt}")
+
+
+def show_sent_orders():
+    global all_orders, executor, orders_lists, account_name, orders, all_orders_sorted
+    all_orders = []
+    with ThreadPoolExecutor() as executor:
+        # Используем executor.map для распараллеливания обращений к биржам
+        orders_lists = executor.map(fetch_orders, zip(masters.values(), [msymbol] * len(masters)))
+        for account_name, orders in zip(masters.keys(), orders_lists):
+            all_orders.extend([{'account_name': account_name, **order} for order in orders])
+    # Сортировка объединенного списка по дате
+    all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
+    # TODO: обрезать список здесь
+    print_orders("Master sent orders", all_orders_sorted)
+
+
+def show_active_orders():
+    global all_orders, executor, orders_lists, account_name, orders, all_orders_sorted
+    all_orders = []
+    with ThreadPoolExecutor() as executor:
+        # Используем executor.map для распараллеливания обращений к биржам
+        orders_lists = executor.map(fetch_open_orders, zip(masters.values(), [msymbol] * len(masters)))
+        for account_name, orders in zip(masters.keys(), orders_lists):
+            all_orders.extend([{'account_name': account_name, **order} for order in orders])
+    # Сортировка объединенного списка по дате
+    all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
+    # TODO: обрезать список здесь
+    print_orders("Master active orders", all_orders_sorted)
+
+
+def show_filled_orders():
+    global all_orders, executor, account_name, all_orders_sorted
+    all_orders = []
+    with ThreadPoolExecutor() as executor:
+        # Используем executor.map для распараллеливания обращений к биржам
+        master_orders_lists = executor.map(fetch_filled_orders, [(exchange, msymbol) for exchange in masters.values()])
+        slave_orders_lists = executor.map(fetch_filled_orders, [(exchange, ssymbol) for exchange in slaves.values()])
+
+        for account_name, master_orders in zip(masters.keys(), master_orders_lists):
+            all_orders.extend(master_orders)
+
+        for account_name, slave_orders in zip(slaves.keys(), slave_orders_lists):
+            all_orders.extend(slave_orders)
+    # Сортировка объединенного списка по дате
+    all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
+    # Вывод информации
+    print_orders_combo("ALL Filled Orders", all_orders_sorted)
+
+
+def action_selected(choice):
+    if choice == "b":
+        while True:
+            try:
+                show_balances()
+                break
+            except Exception as e:
+                print(f"{e}, retrying...")
+                continue
+    # ===================================================================================
+    if choice == "s":
+        while True:
+            try:
+                show_sent_orders()
+                break
+            except Exception as e:
+                print(f"{e}, retrying...")
+                continue
+    # ===================================================================================
+    if choice == "a":
+        while True:
+            try:
+                show_active_orders()
+                break
+            except Exception as e:
+                print(f"{e}, retrying...")
+                continue
+    # ===================================================================================
+    if choice == "f":
+        while True:
+            try:
+                show_filled_orders()
+                break
+            except Exception as e:
+                print(f"{e}, retrying...")
+                continue
+
+
 if __name__ == "__main__":
+    choice="b"
     while True:
+        action_selected(choice)
 
-        all_balances = []
-        with ThreadPoolExecutor() as executor:
-            # Используем executor.map для распараллеливания обращений к биржам
-            master_balances = executor.map(get_balance, zip(masters.values(), [msymbol]*len(masters)))
-            slave_balances = executor.map(get_balance, zip(slaves.values(), [ssymbol]*len(slaves)))
+        prevChoice = choice
+        choice = input("\nPress C to exit, \"B\"alance, \"S\"ent or \"F\"illed or \"A\"ctive to fetch orders, or Enter to refresh...").lower()
+        if choice == "":
+            choice = prevChoice
 
-            all_balances.extend([balance for balance in master_balances if balance])
-            all_balances.extend([balance for balance in slave_balances if balance])
-
-        common_rate = list(slaves.values())[0].fetch_ticker(ssymbol)['bid']
-        for balance in all_balances:
-            balance['rate'] = common_rate
-
-        # Распечатаем все балансы
-        print(f"{msymbol} vs {ssymbol} rate: {common_rate} time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print_balances(all_balances)
-
-        for master_id, master_data in masters.items():
-            ordercnt = fetchOrderCntLastDay(master_data)
-            print(f"masters[{master_id}] ordercnt sent last day: {ordercnt}")
-
-        choice = input("\nPress C to exit, \"S\"ent or \"F\"illed or \"A\"ctive to fetch orders, or any other key to refresh balance...").lower()
-
-        if choice in {"s","f","a"}:
-            break  # Прерываем цикл
-        elif choice == "c":
-            exit()  # Завершаем программу при выборе любой другой клавиши
-        # Другие кнопки: программа повторит цикл
+        if choice == "c":
+            exit()
 
 
-#===================================================================================
-    if choice=="s":
-        all_orders = []
-        with ThreadPoolExecutor() as executor:
-            # Используем executor.map для распараллеливания обращений к биржам
-            orders_lists = executor.map(fetch_orders, zip(masters.values(), [msymbol]*len(masters)))
-            for account_name, orders in zip(masters.keys(), orders_lists):
-                all_orders.extend([{'account_name': account_name, **order} for order in orders])
-	
-        # Сортировка объединенного списка по дате
-        all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
-        
-        #TODO: обрезать список здесь	
-        print_orders("Master sent orders", all_orders_sorted)
-
-#===================================================================================
-    if choice=="a":
-        all_orders = []
-        with ThreadPoolExecutor() as executor:
-            # Используем executor.map для распараллеливания обращений к биржам
-            orders_lists = executor.map(fetch_open_orders, zip(masters.values(), [msymbol]*len(masters)))
-            for account_name, orders in zip(masters.keys(), orders_lists):
-                all_orders.extend([{'account_name': account_name, **order} for order in orders])
-	
-        # Сортировка объединенного списка по дате
-        all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
-        
-        #TODO: обрезать список здесь	
-        print_orders("Master active orders", all_orders_sorted)
-
-#===================================================================================
-    if choice=="f":
-        all_orders = []
-        with ThreadPoolExecutor() as executor:
-            # Используем executor.map для распараллеливания обращений к биржам
-            master_orders_lists = executor.map(fetch_filled_orders, [(exchange, msymbol) for exchange in masters.values()])
-            slave_orders_lists = executor.map(fetch_filled_orders, [(exchange, ssymbol) for exchange in slaves.values()])
-
-            for account_name, master_orders in zip(masters.keys(), master_orders_lists):
-                all_orders.extend(master_orders)
-
-            for account_name, slave_orders in zip(slaves.keys(), slave_orders_lists):
-                all_orders.extend(slave_orders)
-
-        # Сортировка объединенного списка по дате
-        all_orders_sorted = sorted(all_orders, key=lambda x: x['timestamp'])
-
-        # Вывод информации
-        print_orders_combo("ALL Filled Orders", all_orders_sorted)
 
