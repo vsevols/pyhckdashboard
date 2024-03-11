@@ -1,63 +1,13 @@
-﻿import ccxt
-from datetime import datetime
+﻿import importlib
+import sys
+
+import ccxt
 import os
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
-bncusProxy= 'socks5://15.164.123.59:1080/'  # AWS Seoul
+masters = slaves = msymbol = ssymbol = None
 
-# Инициализация словаря объектов ccxt.exchange для masters
-masters = {
-    'LAGUS': ccxt.binanceus({
-        'apiKey': os.environ.get('LAGUS_BNCUS_API_KEY'),
-        'secret': os.environ.get('LAGUS_BNCUS_API_SECRET'),
-        'enableRateLimit': True,
-        'socksProxy': bncusProxy,
-        'options': {
-            'adjustForTimeDifference': True,
-        },
-    }),
-    'AGRAFENIN': ccxt.binanceus({
-        'apiKey': os.environ.get('AGRAFENIN_BNCUS_API_KEY'),
-        'secret': os.environ.get('AGRAFENIN_BNCUS_API_SECRET'),
-        'enableRateLimit': True,
-        'socksProxy': bncusProxy,
-        'options': {
-            'adjustForTimeDifference': True,
-        },
-    }),
-    'STEPANOV': ccxt.binanceus({
-        'apiKey': os.environ.get('STEPANOV_BNCUS_API_KEY'),
-        'secret': os.environ.get('STEPANOV_BNCUS_API_SECRET'),
-        'enableRateLimit': True,
-        'socksProxy': bncusProxy,
-        'options': {
-            'adjustForTimeDifference': True,
-        },
-    }),
-}
-
-# Инициализация словаря объектов ccxt.exchange для slaves
-slaves = {
-    'LAGUSBRO': ccxt.binance({
-        'apiKey': os.environ.get('LAGUSBRO_BNCCOM_API_KEY'),
-        'secret': os.environ.get('LAGUSBRO_BNCCOM_API_SECRET'),
-    }),
-    'VSGMAIL': ccxt.binance({
-        'apiKey': os.environ.get('VSGMAIL_BNCCOM_API_KEY'),
-        'secret': os.environ.get('VSGMAIL_BNCCOM_API_SECRET'),
-    }),
-    'SMAEVSKIJ2': ccxt.binance({
-        'apiKey': os.environ.get('SMAEVSKIJ2_BNCCOM_API_KEY'),
-        'secret': os.environ.get('SMAEVSKIJ2_BNCCOM_API_SECRET'),
-        'socksProxy': bncusProxy,
-    }),
-}
-
-msymbol = 'BTC/USDT'
-ssymbol = 'BTC/FDUSD'
-
-masters.pop('LAGUS', None)
-slaves.pop('LAGUSBRO', None)
 
 
 #for acc_name, exchange in slaves.items():
@@ -332,8 +282,31 @@ def action_selected(choice):
                 print(f"{e}, retrying...")
                 continue
 
+def set_global_variables(module):
+    global masters, slaves, msymbol, ssymbol
+    masters = module.masters
+    slaves = module.slaves
+    msymbol = module.msymbol
+    ssymbol = module.ssymbol
+
+
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        module_name = sys.argv[1].replace(".py", "")
+
+        try:
+            # imported_module = __import__(module_name)
+            # imported_module = sys.modules[module_name]
+            imported_module = importlib.import_module(module_name)
+            set_global_variables(imported_module)
+        except ImportError as e:
+            print(f"Не удалось импортировать модуль {module_name}: {e}")
+            exit()
+    else:
+        print("Необходимо указать имя файла модуля в аргументах командной строки.")
+        exit()
+
     choice="b"
     while True:
         action_selected(choice)
