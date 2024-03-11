@@ -11,19 +11,28 @@ masters = {
         'apiKey': os.environ.get('LAGUS_BNCUS_API_KEY'),
         'secret': os.environ.get('LAGUS_BNCUS_API_SECRET'),
         'enableRateLimit': True,
-        'socksProxy': bncusProxy
+        'socksProxy': bncusProxy,
+        'options': {
+            'adjustForTimeDifference': True,
+        },
     }),
     'AGRAFENIN': ccxt.binanceus({
         'apiKey': os.environ.get('AGRAFENIN_BNCUS_API_KEY'),
         'secret': os.environ.get('AGRAFENIN_BNCUS_API_SECRET'),
         'enableRateLimit': True,
         'socksProxy': bncusProxy,
+        'options': {
+            'adjustForTimeDifference': True,
+        },
     }),
     'STEPANOV': ccxt.binanceus({
         'apiKey': os.environ.get('STEPANOV_BNCUS_API_KEY'),
         'secret': os.environ.get('STEPANOV_BNCUS_API_SECRET'),
         'enableRateLimit': True,
         'socksProxy': bncusProxy,
+        'options': {
+            'adjustForTimeDifference': True,
+        },
     }),
 }
 
