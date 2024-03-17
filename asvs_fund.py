@@ -51,7 +51,7 @@ slaves = {
     }),
 }
 
-msymbol = 'BTC/USDT'
+msymbol = 'BTC/USDC'
 ssymbol = 'BTC/FDUSD'
 
 masters.pop('LAGUS', None)

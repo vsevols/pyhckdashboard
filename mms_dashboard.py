@@ -290,8 +290,7 @@ def set_global_variables(module):
     ssymbol = module.ssymbol
 
 
-
-if __name__ == "__main__":
+def import_fund_module_from_arg():
     if len(sys.argv) > 1:
         module_name = sys.argv[1].replace(".py", "")
 
@@ -306,6 +305,10 @@ if __name__ == "__main__":
     else:
         print("Необходимо указать имя файла модуля в аргументах командной строки.")
         exit()
+
+
+if __name__ == "__main__":
+    import_fund_module_from_arg()
 
     choice="b"
     while True:
