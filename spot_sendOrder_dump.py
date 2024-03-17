@@ -102,15 +102,14 @@ while True:
         recepientIsSell = isBaseMoreThanQuote(recepient)
         if recepientIsSell:
             my_bid = depth0_ask_price - 1
-            print(f'{my_bid} donor buying')
+            print(f'{my_bid} donor buying: {my_bid}')
             recepient.create_limit_sell_order(symbol, quantity, my_bid)
             donor.create_limit_buy_order(symbol, quantity, my_bid)
         else:
             my_ask = depth0_bid_price + 1
-            print(f'{my_ask} donor selling')
+            print(f'{my_ask} donor selling: {my_ask}')
             recepient.create_limit_buy_order(symbol, quantity, my_ask)
             donor.create_limit_sell_order(symbol, quantity, my_ask)
-            print(recepientIsSell)
     except ccxt.InsufficientFunds as e:
         print("Ошибка: Недостаточно средств на счете для размещения ордера.")
         print("Подробности:", e)
