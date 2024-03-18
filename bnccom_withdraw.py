@@ -1,11 +1,11 @@
 import ccxt
 import os
 
-api_key = os.environ.get('STEPANOV_BNCUS_API_KEY')
-api_secret = os.environ.get('STEPANOV_BNCUS_API_SECRET')
+api_key = os.environ.get('MALY_BNCCOM_API_KEY')
+api_secret = os.environ.get('MALY_BNCCOM_API_SECRET')
 
 # Создайте объект Binance с использованием ключей API
-exchange = ccxt.binanceus({
+exchange = ccxt.binance({
     'apiKey': api_key,
     'secret': api_secret,
     'socksProxy': 'socks5://15.164.123.59:1080/',
@@ -21,10 +21,10 @@ exchange = ccxt.binanceus({
 withdrawal_address = '0xb8ba53e5bd5a0482c01c0f2cedc7a71f55923643'
 
 # Укажите токен, который вы хотите вывести
-symbol = 'USDC'  # Замените на нужный токен
+symbol = 'USDT'  # Замените на нужный токен
 
 # Укажите сумму для вывода
-amount = 15  # Замените на нужную сумму
+amount = 42.84  # Замените на нужную сумму
 
 # Опции вывода
 params = {
