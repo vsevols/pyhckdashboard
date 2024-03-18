@@ -58,6 +58,8 @@ symbol = 'BTC/USDC'
 
 order_ids_to_cancel = []#['335780072', '335780090']
 
+cancel_all_open(recepient)
+
 try:
     # Отмена ордеров по заданным ID
     for order_id in order_ids_to_cancel:
@@ -102,16 +104,29 @@ while True:
         recepientIsSell = isBaseMoreThanQuote(recepient)
         if recepientIsSell:
             my_bid = depth0_ask_price - 1
-            print(f'{my_bid} donor buying: {my_bid}')
+            print(f'donor buying: {my_bid}')
             recepient.create_limit_sell_order(symbol, quantity, my_bid)
-            donor.create_limit_buy_order(symbol, quantity, my_bid)
+            try:
+                donor.create_limit_buy_order(symbol, quantity, my_bid)
+            except ccxt.InsufficientFunds as e:
+                donor.create_limit_sell_order(symbol, quantity, 60000)
+                print("fixing bias donor selling")
         else:
             my_ask = depth0_bid_price + 1
-            print(f'{my_ask} donor selling: {my_ask}')
+            print(f'donor selling: {my_ask}')
             recepient.create_limit_buy_order(symbol, quantity, my_ask)
-            donor.create_limit_sell_order(symbol, quantity, my_ask)
+            try:
+                donor.create_limit_sell_order(symbol, quantity, my_ask)
+            except ccxt.InsufficientFunds as e:
+                donor.create_limit_buy_order(symbol, quantity, 80000)
+                print("fixing bias donor buying")
     except ccxt.InsufficientFunds as e:
         print("Ошибка: Недостаточно средств на счете для размещения ордера.")
         print("Подробности:", e)
-        cancel_all_open(donor)
-        cancel_all_open(recepient)
+        try:
+            cancel_all_open(donor)
+            cancel_all_open(recepient)
+        except Exception as e:
+            print(e)
+    except Exception as e:
+        print(e)
