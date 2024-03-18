@@ -56,3 +56,5 @@ ssymbol = 'BTC/FDUSD'
 
 masters.pop('LAGUS', None)
 slaves.pop('LAGUSBRO', None)
+#masters.pop('STEPANOV', None)
+masters.pop('AGRAFENIN', None)
