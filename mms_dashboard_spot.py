@@ -192,14 +192,20 @@ def get_balance_slave_is_im(args):
     base_amount = balance['total'][base_currency]
     return {'account_name': account_name, 'party': getParty(exchange), 'quote_amount': quote_amount, 'base_amount': base_amount}
 
+def get_balance_slave_select(exchange):
+    # print(get_account_name(exchange))
+    # if get_account_name(exchange)=="JACEK":
+        return get_balance_slave_is_spot(exchange)
+    #else: return get_balance_slave_is_im(exchange)
+
 
 def show_balances():
     global all_balances, executor
     all_balances = []
     with ThreadPoolExecutor() as executor:
         # Используем executor.map для распараллеливания обращений к биржам
-        master_balances = executor.map(get_balance_slave_is_im, zip(masters.values(), [msymbol] * len(masters)))
-        slave_balances = executor.map(get_balance_slave_is_im, zip(slaves.values(), [ssymbol] * len(slaves)))
+        master_balances = executor.map(get_balance_slave_select, zip(masters.values(), [msymbol] * len(masters)))
+        slave_balances = executor.map(get_balance_slave_select, zip(slaves.values(), [ssymbol] * len(slaves)))
 
         all_balances.extend([balance for balance in master_balances if balance])
         all_balances.extend([balance for balance in slave_balances if balance])

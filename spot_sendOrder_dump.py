@@ -33,9 +33,9 @@ def import_fund_module_from_arg():
         exit()
 
 import_fund_module_from_arg()
-donor = masters['AGRAFENIN']
-recepient = masters['STEPANOV']
-exchange = donor
+donor = slaves['JACEK']
+recepient = slaves['SMAEVSKIJ2']
+exchange = recepient
 
 
 asset = 'USDC'
@@ -46,7 +46,7 @@ asset = 'USDC'
 def cancel_all_open(exchange):
     global orders
     # Получение списка активных ордеров
-    symbol = 'BTC/USDC'
+    symbol = 'BTC/JPY'
     orders = exchange.fetch_open_orders(symbol)
     # Отмена каждого активного ордера
     for order in orders:
@@ -54,9 +54,14 @@ def cancel_all_open(exchange):
 
 
 # Символ торговли (например, 'FDUSD/USDT')
-symbol = 'BTC/USDC'
+symbol = 'BTC/JPY'
 
 order_ids_to_cancel = []#['335780072', '335780090']
+
+#response = donor.transfer("USDT", 43.17, 'BTC/USDT', 'spot')
+#print(response)
+#donor.create_limit_buy_order("BTC/USDT", 0.00063, 67999)
+#exit()
 
 cancel_all_open(recepient)
 
@@ -77,9 +82,9 @@ print(f"active orders {symbol}: ")
 print(orders)
 
 
-symbol = 'BTC/USDC'
+symbol = 'BTC/JPY'
 #price = 68000  # Замените на актуальную цену
-quantity = 0.00005  # Количество BASE
+quantity = 0.0001  # Количество BASE
 
 
 recepientIsSell = False
@@ -103,22 +108,22 @@ while True:
 
         recepientIsSell = isBaseMoreThanQuote(recepient)
         if recepientIsSell:
-            my_bid = depth0_ask_price - 1
+            my_bid = depth0_ask_price - 1000
             print(f'donor buying: {my_bid}')
             recepient.create_limit_sell_order(symbol, quantity, my_bid)
             try:
                 donor.create_limit_buy_order(symbol, quantity, my_bid)
             except ccxt.InsufficientFunds as e:
-                donor.create_limit_sell_order(symbol, quantity, 60000)
+                donor.create_limit_sell_order(symbol, quantity, 9000000)
                 print("fixing bias donor selling")
         else:
-            my_ask = depth0_bid_price + 1
+            my_ask = depth0_bid_price + 1000
             print(f'donor selling: {my_ask}')
             recepient.create_limit_buy_order(symbol, quantity, my_ask)
             try:
                 donor.create_limit_sell_order(symbol, quantity, my_ask)
             except ccxt.InsufficientFunds as e:
-                donor.create_limit_buy_order(symbol, quantity, 80000)
+                donor.create_limit_buy_order(symbol, quantity, 11000000)
                 print("fixing bias donor buying")
     except ccxt.InsufficientFunds as e:
         print("Ошибка: Недостаточно средств на счете для размещения ордера.")

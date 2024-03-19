@@ -66,10 +66,12 @@ slaves = {
     }),
 }
 
-msymbol = 'BTC/USDT'
-ssymbol = 'BTC/USDT'
+msymbol = 'BTC/JPY'
+ssymbol = 'BTC/JPY'
 
 masters.pop('LAGUS', None)
 slaves.pop('LAGUSBRO', None)
 #masters.pop('STEPANOV', None)
 masters.pop('AGRAFENIN', None)
+slaves.pop('REZNIK', None)
+slaves.pop('MALY', None)
